@@ -1,4 +1,4 @@
-﻿// Linear Algebra.h : Include file for standard system include files,
+﻿// Linear_Algebra.h : Include file for standard system include files,
 // or project specific include files.
 
 #pragma once

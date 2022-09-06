@@ -1,8 +1,9 @@
 ﻿// Linear Algebra.cpp : Defines the entry point for the application.
 //
 
-#include "Linear Algebra.h"
+#include "Linear_Algebra.h"
 #include <cmath>
+#include <iomanip>
 
 // SECTION 1 : VECTOR AND MATRIX CLASSES
 // ----------------------------------------------------------
@@ -22,6 +23,12 @@ public:
 		Elem = new double[row]; // Dynamically allocating the memory
 	}
 
+	// Vector Destructor
+	~Vector() {
+		delete[] Elem;
+		Elem = NULL;
+	}
+
 	// Asking the user to enter the vector elements
 	void EnterElements() {
 		for (int i = 0; i < Row; i++) {
@@ -32,6 +39,9 @@ public:
 
 	// Displaying the Vector
 	void Display() {
+		// Setting the precision after the decimal places
+		std::cout << std::setprecision(6) << std::fixed;
+
 		for (int i = 0; i < Row; i++) {
 			std::cout << Elem[i] << std::endl;
 		}
@@ -105,6 +115,15 @@ class Matrix {
 			
 		}
 
+		// Matrix Destructor
+		~Matrix() {
+			for (int i = 0; i < Row; i++) {
+				delete Elem[i];
+			}
+			delete[] Elem;
+			Elem = NULL;
+		}
+
 
 		// Defining vector to matrix conversion
 		Matrix(Vector& v) {
@@ -128,16 +147,19 @@ class Matrix {
 		void EnterElements() {
 			
 			// Entering Matrix Elemnts
-			for (int i = 0; i < Row; i++) {
-				std::cout << "Enter row " << (i + 1) << ":\n";
-				for (int j = 0; j < Col; j++) {
-					std::cin >> Elem[i][j];
+			for (int i = 0; i < Col; i++) {
+				std::cout << "Enter col " << (i + 1) << ":\n";
+				for (int j = 0; j < Row; j++) {
+					std::cin >> Elem[j][i];
 				}
 			}
 		}
 
 		// Displaying the matrix
 		void Display() {
+			
+			// Setting the precision for decimal places
+			std::cout << std::setprecision(6) << std::fixed;
 			
 			// Displaying the matrix elements
 			for (int i = 0; i < Row; i++) {
@@ -350,9 +372,16 @@ class Matrix {
 		}
 
 		// Getting all the columns of a matrix
-		/*void GetCols() {
-
-		}*/
+		void GetCols() {
+			
+			std::cout << std::setprecision(6) << std::fixed;
+			for (int i = 0; i < Col; i++) {
+				std::cout << "col " << i + 1 << std::endl;
+				for (int j = 0; j < Row; j++) {
+					std::cout << Elem[j][i] << std::endl;
+				}
+			}
+		}
 
 		// Checking whether the matrix is symmetric
 		bool isSymmetric() {
@@ -740,18 +769,19 @@ Matrix LinearSystemSolve(Matrix& A, Vector& b) {
 
 // Projects a vector v1 on the line spanned by v2
 Vector Proj(Vector& v1, Vector& v2) {
-	return VecScalerMult(Dot(v1, v2) / pow(Dot(v2, v2), 0.5), v2);
+	return (Dot(v1, v2) / pow(Dot(v2, v2), 0.5)) * v2;
 }
 
 /*Applies the Gram-Schmidt procces on the matrix A
-where matrix A is the set of vectors that needs to be made orthonormal.*/ 
+where columns of A are the set of vectors that needs to be made orthonormal.*/ 
 Matrix GramSchmidt(Matrix& A) {
 	
-	// Initializing the vectors and a matrix to store our answer in
-	Vector* v1 = new Vector(A.Row);
-	Vector* v2 = new Vector(A.Row);
-	Vector* vPerp = new Vector(A.Row);
-	Matrix B(A.Row, A.Col);
+	/* Initializing the vectors and a matrix to store our answer in.
+	We use pointers in order to manipulate the vector and matrix elements directly*/
+	Vector* v1 = new Vector(A.Row); // New Vector Pointer
+	Vector* v2 = new Vector(A.Row); // Old Vector Pointer
+	//Vector* vPerp = new Vector(A.Row); // Orthogonal Vector Pointer
+	Matrix* B = new Matrix(A.Row, A.Col); // Matrix pointer to store the answer
 	
 	// GRAM-SCHMIDT PROCESS ALGORITHM
 	// Setting the vector elements from the input matrix 
@@ -759,51 +789,37 @@ Matrix GramSchmidt(Matrix& A) {
 		for (int j = 0; j < A.Row; j++) {
 			v1->Elem[j] = A.Elem[j][i];
 		}
-		// Debugging code:
-		v1->Display();
 		if (i == 0) {
 			*v1 = (1 / pow(Dot(*v1, *v1), 0.5)) * (*v1); // Normalizing the vector
 			*v2 = *v1;
 			for (int j = 0; j < A.Row; j++) {
-				B.Elem[j][i] = v1->Elem[j];
+				B->Elem[j][i] = v1->Elem[j];
 			}
-			std::cout << "vector " << i + 1 << std::endl;
-			v2->Display();
 		}
 		else {
 			// Making an orthogonal vector to the previous vector
-			*vPerp = *v1;
-			for (int j = i; j > 0; j--) {
+			int j = i;
+			while (j != 0) {
 				for (int k = 0; k < A.Row; k++) {
-					v2->Elem[k] = B.Elem[k][j];
+					v2->Elem[k] = B->Elem[k][j - 1];
 				}
-				*vPerp = *v1 - Proj(*v1, *v2);
-				*v2 = *vPerp;
-				*v2 = (1 / pow(Dot(*v2, *v2), 0.5)) * (*v2);
-				for (int k = 0; k < A.Row; k++) {
-					B.Elem[k][j] = v2->Elem[k];
-				}
-				std::cout << "vector " << i + 1 << std::endl;
-				v2->Display();
+				*v1 = *v1 - Proj(*v1, *v2);
+				*v2 = *v1;
+				j--;
+			};
+			*v2 = (1 / pow(Dot(*v2, *v2), 0.5)) * (*v2);
+			for (int k = 0; k < A.Row; k++) {
+				B->Elem[k][i] = v2->Elem[k];
 			}
-			/*if (i == 1) {
-				*vPerp = *v1 - Proj(*v1, *v2);
-				*v2 = *vPerp;
-				*v2 = (1 / pow(Dot(*v2, *v2), 0.5)) * (*v2);
-				for (int j = 0; j < A.Row; j++) {
-					B.Elem[j][i] = v2->Elem[j];
-					std::cout << "vector " << i + 1 << std::endl;
-					v2->Display();
-				}
-			}
-			else {
-				
-			}*/
-			
 		}
 	}
-	
-	return B;
+	// Freeing the memory
+	delete v1;
+	delete v2;
+	v1 = NULL;
+	v2 = NULL;
+
+	return *B;
 }
 
 int main()
@@ -880,10 +896,9 @@ int main()
 	Matrix C = A + B;
 	C.Display();*/
 
-	Matrix A(3, 3);
+	/*Matrix A(4, 3);
 	A.EnterElements();
-	GramSchmidt(A).Display();
-
+	GramSchmidt(A).Display();*/
 
 	return 0;
 }
