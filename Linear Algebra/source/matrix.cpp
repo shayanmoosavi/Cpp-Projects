@@ -1,16 +1,27 @@
 #include "matrix.h"
 #include <iostream>
 #include <iomanip>
+#include <cmath>
+#include <cstring>
 
+
+// Linear Algebra Namespace
 namespace LinAlg {
-	// EXCEPTIONS
-	MatrixExceptions::MatrixExceptions(const char* msg) : message(msg) {}
 
-	const char* MatrixExceptions::what() const throw() {
-		return message;
+    [[maybe_unused]] MatrixExceptions::MatrixExceptions(
+            // Member Initializer List
+            const char* errtyp, const char* msg) : ErrorType(errtyp), Message(msg) {}
+
+	const char* MatrixExceptions::what() const noexcept {
+        // Concatenating the strings
+        static char buffer[sizeof(this->ErrorType) + sizeof(" - ") + sizeof(this->Message)];
+        strcpy(buffer, ErrorType);
+        strcat(buffer, " - ");
+        strcat(buffer, Message);
+
+        return buffer;
 	}
 
-	// Matrix Constructor
 	Matrix::Matrix(int row, int col) : Row(row), Col(col) {
 
 		// Dynamically Allocating Memory
@@ -21,16 +32,13 @@ namespace LinAlg {
 
 	}
 
-	// Matrix Destructor (Deleted for now)
-	/*Matrix::~Matrix() {
+	Matrix::~Matrix() {
 		for (int i = 0; i < Row; i++) {
 			delete Elem[i];
 		}
 		delete[] Elem;
-		Elem = NULL;
-	}*/
+	}
 
-	// Defining vector to matrix conversion
 	Matrix::Matrix(const Vector& v) {
 
 		// Initializing the Rows and columns
@@ -42,16 +50,16 @@ namespace LinAlg {
 		for (int i = 0; i < Row; i++) {
 			Elem[i] = new double[Col];
 		}
+
 		// setting the elements
 		for (int i = 0; i < Row; i++) {
 			Elem[i][0] = v.Elem[i];
 		}
 	}
 
-	// Asking the user to enter matrix elements
-	void Matrix::EnterElements() {
+    [[maybe_unused]] void Matrix::EnterElements() const {
 
-		// Entering Matrix Elemnts
+		// Entering Matrix Elements
 		for (int i = 0; i < Col; i++) {
 			std::cout << "Enter col " << (i + 1) << ":\n";
 			for (int j = 0; j < Row; j++) {
@@ -60,8 +68,7 @@ namespace LinAlg {
 		}
 	}
 
-	// Displaying the matrix
-	void Matrix::Display() const {
+    [[maybe_unused]] void Matrix::Display() const {
 
 		// Setting the precision for decimal places
 		std::cout << std::setprecision(6) << std::fixed;
@@ -75,25 +82,51 @@ namespace LinAlg {
 		}
 	}
 
-	// Displaying the size of a matrix
-	void Matrix::Size() const {
+    [[maybe_unused]] void Matrix::Size() const {
 		std::cout << Row << 'x' << Col << std::endl;
 	}
 
-	// Overloading the "-" operator for matrix subtraction
-	Matrix Matrix::operator-(const Matrix& A) {
-		// Matrix dimensions should match
-		if (Row != A.Row || Col != A.Col) {
+    Matrix Matrix::operator+(const Matrix& A) const {
 
-			// Producing an error
-			MatrixExceptions sub_err("Undefined Operation! Matrix dimensions do not match.");
-			throw sub_err;
+        // Matrix dimensions should match
+        if (Row != A.Row || Col != A.Col) {
+
+            // Producing an error if the dimensions do not match
+            throw MatrixExceptions("[NonMatchingDimensionsException]",
+                                   "Undefined Operation! Matrix dimensions do not match.");
+
+        }
+
+        /* Creating a new matrix object. Declared static in order to prevent the destructor
+         from being called inappropriately.*/
+        static Matrix AplusB(A.Row, A.Col);
+
+        // Doing the matrix addition
+        for (int i = 0; i < A.Row; i++) {
+            for (int j = 0; j < A.Col; j++) {
+                AplusB.Elem[i][j] = Elem[i][j] + A.Elem[i][j];
+            }
+        }
+
+        return AplusB;
+
+    }
+
+
+    Matrix Matrix::operator-(const Matrix& A) const {
+
+        // Matrix dimensions should match
+		if (Row != A.Row || Col != A.Col) {
+			// Producing an error message if Matrix dimensions do not match
+			throw MatrixExceptions("[NonMatchingDimensionsException]",
+                                   "Undefined Operation! Matrix dimensions do not match.");
 		}
 
-		// Creating a new matrix object
-		Matrix AminusB(A.Row, A.Col);
+		/* Creating a new matrix object. Declared static in order to prevent the destructor
+         from being called inappropriately.*/
+		static Matrix AminusB(A.Row, A.Col);
 
-		// Doing the matrix addition
+		// Doing the matrix subtractions
 		for (int i = 0; i < A.Row; i++) {
 			for (int j = 0; j < A.Col; j++) {
 				AminusB.Elem[i][j] = Elem[i][j] - A.Elem[i][j];
@@ -103,16 +136,34 @@ namespace LinAlg {
 		return AminusB;
 	}
 
-	// Calculating the trace of a matrix
-	double Matrix::Trace() {
+    Matrix &Matrix::operator=(const Matrix &A) {
+
+        if(this != &A){ // checking for self assignment
+
+            this->Row = A.Row;
+            this->Col = A.Col;
+
+            for (int i = 0; i < this->Row; i++) {
+                // Assigning the values to the left-hand side variables
+                for (int j = 0; j < this->Col; j++){
+                    this->Elem[i][j] = A.Elem[i][j];
+                }
+            }
+        }
+
+        return *this;
+    }
+
+    [[maybe_unused]] double Matrix::Trace() const {
 
 		// trace of a non-square matrix is undefined
 		if (Row != Col) {
-
-			// producing an error
-			MatrixExceptions trace_err("Undefined operation! Trace is undefined for non-square matrices.");
-			throw trace_err;
+			// Producing an error message if it is a non-square Matrix
+			throw MatrixExceptions("[UndefinedOperationException]",
+                                   "Undefined operation! Trace is undefined for non-square matrices.");
 		}
+
+        // Summing the diagonal elements of the Matrix
 		double sum = 0;
 		for (int i = 0; i < Col; i++) {
 			sum += Elem[i][i];
@@ -122,32 +173,37 @@ namespace LinAlg {
 
 	}
 
-	// Calsulating the determinant of a matrix
-	double Matrix::Det() {
+	double Matrix::Det() const {
 
+        // The determinant of a non-square matrix is undefined
 		if (Row != Col) {
-			MatrixExceptions det_err("ERROR: Determinant is undefined for non-square matrices.");
-			throw det_err;
+            // Producing an error message if it is a non-square Matrix
+            throw MatrixExceptions("[UndefinedOperationException]",
+                                   "Undefined operation! Determinant is undefined for non-square matrices.");
 		}
 		else {
+
 			if (Row == 2) {
+                // Determinant of a 2x2 Matrix
 				return Elem[0][0] * Elem[1][1] - Elem[0][1] * Elem[1][0];
 			}
 			else {
-				double sum = 0;
+				// Recursive definition of the determinant
+                double sum = 0;
 				for (int i = 0; i < Col; i++) {
 					sum += pow(-1, i) * Elem[0][i] * SubMatrix(0, i).Det();
 				}
+
 				return sum;
 			}
 		}
 	}
 
-	// Transposing a matrix
-	Matrix Matrix::Transpose() {
+    [[maybe_unused]] Matrix Matrix::Transpose() const {
 
-		// Creating a new matrix object with row and column numbers reversed
-		Matrix TransMat(Col, Row);
+		/* Creating a new matrix object with row and column numbers reversed. Declared static in order to
+		 prevent the destructor from being called inappropriately*/
+		static Matrix TransMat(Col, Row);
 
 		// Doing the transpose
 		for (int i = 0; i < TransMat.Row; i++) {
@@ -159,11 +215,12 @@ namespace LinAlg {
 		return TransMat;
 	}
 
-	// Creating a submatrix with row i and col j removed
-	Matrix Matrix::SubMatrix(int row, int col) {
-		int SubRow = Row - 1;
+	Matrix Matrix::SubMatrix(int row, int col) const {
+
+        int SubRow = Row - 1;
 		int SubCol = Col - 1;
-		Matrix sub(SubRow, SubCol);
+
+        static Matrix sub(SubRow, SubCol);
 
 		for (int i = 0; i < Row; i++) {
 			if (i == row) {
@@ -202,16 +259,20 @@ namespace LinAlg {
 		return sub;
 	}
 
-	// Augment a matrix on the right with another matrix
-	Matrix Matrix::MatAugment(const Matrix& A) {
+	Matrix Matrix::MatAugment(const Matrix& A) const {
+
 		if (Row != A.Row) {
-			MatrixExceptions aug_err("ERROR: Rows do not match.");
-			throw aug_err;
+            // Rows must match when we want to append a Matrix to the right
+			throw MatrixExceptions("[NonMatchingDimensionsException]","ERROR: Rows do not match.");
 		}
 		else {
-			Matrix AugMat(Row, Col + A.Col);
+
+			static Matrix AugMat(Row, Col + A.Col);
+
 			for (int i = 0; i < AugMat.Row; i++) {
+
 				for (int j = 0; j < AugMat.Col; j++) {
+
 					if (j < Row) {
 						AugMat.Elem[i][j] = Elem[i][j];
 					}
@@ -226,13 +287,15 @@ namespace LinAlg {
 
 	}
 
-	// Splitting a matrix into two other matrices sliced at specified column
-	void Matrix::Split(int col, Matrix* Mat1, Matrix* Mat2) {
+	void Matrix::Split(int col, Matrix* Mat1, Matrix* Mat2) const {
+
 		if (col == 0) {
-			throw MatrixExceptions("ERROR: Column index should be at least 1!");
+            // At least one column is needed for splitting into two matrices
+            throw MatrixExceptions("[MiscException]","ERROR: Column index should be at least 1!");
 		}
 		else if (col == Col) {
-			throw MatrixExceptions("ERROR: Cannot split at the last column!");
+            // At least one column is needed for splitting into two matrices
+            throw MatrixExceptions("[MiscException]","ERROR: Cannot split at the last column!");
 		}
 		else {
 			*Mat1 = Matrix(Row, col);
@@ -250,8 +313,7 @@ namespace LinAlg {
 		}
 	}
 
-	// Getting all the columns of a matrix
-	void Matrix::GetCols() const {
+    [[maybe_unused]] void Matrix::GetCols() const {
 
 		std::cout << std::setprecision(6) << std::fixed;
 		for (int i = 0; i < Col; i++) {
@@ -262,14 +324,11 @@ namespace LinAlg {
 		}
 	}
 
-	// Checking whether the matrix is symmetric
-	bool Matrix::isSymmetric() {
+    [[maybe_unused]] bool Matrix::isSymmetric() const {
 
-		// Symmetry is only defined for square matrices 
+        // Non-square matrices are not symmetric
 		if (Col != Row) {
-			// producing an error
-			MatrixExceptions sym_err("Symmetry is undefined for non-square matrices!");
-			throw sym_err;
+			return false;
 		}
 		else {
 
@@ -288,7 +347,7 @@ namespace LinAlg {
 					}
 				}
 			}
-			if (test == true) {
+			if (test) {
 				return true;
 			}
 			else {
@@ -297,8 +356,7 @@ namespace LinAlg {
 		}
 	}
 
-	// Checking whether a matrix is a square matrix
-	bool Matrix::isSquare() {
+    [[maybe_unused]] bool Matrix::isSquare() const {
 		if (Row == Col) {
 			return true;
 		}
